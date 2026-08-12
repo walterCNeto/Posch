@@ -16,6 +16,10 @@ parts:
     chapters:
       - file: cap08_validacao_rating
       - file: cap09_validacao_carteira
+  - caption: Precificação e estruturados
+    chapters:
+      - file: cap10_cds
+      - file: cap11_cdos
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br

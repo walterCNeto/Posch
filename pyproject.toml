@@ -60,3 +60,5 @@ select = ["E", "F", "I", "UP", "B"]
 # Fórmulas LaTeX em docstring perdem legibilidade se quebradas na marra.
 "credrisk/correlation/vasicek.py" = ["E501"]
 "credrisk/portfolio/montecarlo.py" = ["E501"]
+"credrisk/pricing/cds.py" = ["E501"]
+"credrisk/structured/cdo.py" = ["E501"]
