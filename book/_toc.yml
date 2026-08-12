@@ -6,6 +6,8 @@ parts:
       - file: cap01_logit
       - file: cap02_merton
       - file: cap03_transicao
+      - file: cap04_previsao
+      - file: cap05_lgd
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br

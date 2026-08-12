@@ -347,3 +347,175 @@ def gerar_historico_ratings(
     return historico.sort_values(["ID", "Data"], ignore_index=True)[
         ["ID", "Data", "Rating", "Estado"]
     ]
+
+
+# --------------------------------------------------------------------------
+# Capítulo 4 — previsão de taxas de default
+# --------------------------------------------------------------------------
+
+#: Coeficientes verdadeiros do modelo de taxa de default agregada, na escala
+#: logit. A taxa observada é uma frequência binomial em torno dessa taxa.
+COEFS_TAXA: dict[str, float] = {
+    "CONST": -6.00,
+    "SPR": 0.42,      # spread de crédito, em pontos percentuais
+    "PRF": 0.030,     # proporção de emissores de baixa qualidade, em %
+    "PIB": -0.140,    # crescimento do PIB, em %
+}
+
+PREDITORES_CAP04: list[str] = ["SPR", "PRF", "PIB"]
+
+
+def gerar_series_macro(
+    n_anos: int = 45, ano_inicial: int = 1981, semente: int = 42
+) -> pd.DataFrame:
+    """Gera a série anual de taxa de default agregada e de fatores explicativos.
+
+    A taxa latente segue um logit nos fatores, com um choque persistente que
+    representa tudo o que move o ciclo de crédito e não está no modelo. A taxa
+    **observada** é a frequência de default de um universo finito de emissores —
+    ou seja, carrega ruído binomial além do ruído do próprio ciclo.
+
+    Essa distinção é o que separa o capítulo 4 de uma regressão qualquer: parte
+    do que se tenta explicar é ruído amostral, e nenhum modelo explica ruído.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Colunas ``Ano``, ``SPR`` (spread de crédito, p.p.), ``PRF`` (% de
+        emissores de baixa qualidade), ``PIB`` (crescimento real, %),
+        ``N_emissores``, ``Defaults`` e ``IDR`` (taxa observada, em fração).
+    """
+    rng = np.random.default_rng(semente)
+
+    def ar1(rho: float, media: float, desvio: float) -> np.ndarray:
+        x = np.empty(n_anos)
+        x[0] = media + rng.normal(0.0, desvio)
+        for t in range(1, n_anos):
+            x[t] = media + rho * (x[t - 1] - media) + rng.normal(
+                0.0, desvio * np.sqrt(1 - rho**2)
+            )
+        return x
+
+    SPR = ar1(0.62, 3.4, 1.15)
+    PRF = ar1(0.80, 42.0, 7.0)
+    PIB = ar1(0.30, 2.6, 2.3)
+
+    # Choque persistente: o ciclo que o modelo não observa.
+    choque = ar1(0.45, 0.0, 0.34)
+
+    indice = (
+        COEFS_TAXA["CONST"]
+        + COEFS_TAXA["SPR"] * SPR
+        + COEFS_TAXA["PRF"] * PRF
+        + COEFS_TAXA["PIB"] * PIB
+        + choque
+    )
+    taxa_latente = 1.0 / (1.0 + np.exp(-indice))
+
+    N = rng.integers(700, 1400, size=n_anos)
+    defaults = rng.binomial(N, taxa_latente)
+
+    return pd.DataFrame(
+        {
+            "Ano": np.arange(ano_inicial, ano_inicial + n_anos),
+            "SPR": SPR,
+            "PRF": PRF,
+            "PIB": PIB,
+            "N_emissores": N,
+            "Defaults": defaults,
+            "IDR": defaults / N,
+            "taxa_latente": taxa_latente,
+        }
+    )
+
+
+# --------------------------------------------------------------------------
+# Capítulo 5 — perda dada o default (LGD)
+# --------------------------------------------------------------------------
+
+SENIORIDADES: list[str] = ["Sr. Sec.", "Sr. Unsec.", "Sub."]
+
+#: Coeficientes verdadeiros da média condicional da LGD, na escala logit.
+COEFS_LGD: dict[str, float] = {
+    "CONST": -0.55,
+    "Sr. Unsec.": 0.80,   # efeito frente à referência (Sr. Sec.)
+    "Sub.": 1.55,
+    "LEV": 1.20,          # alavancagem do emissor
+    "COB": -2.60,         # cobertura por garantia (valor da garantia / exposição)
+    "CICLO": 0.85,        # sensibilidade ao fator sistêmico anual
+}
+
+#: Precisão da beta: quanto menor, mais massa nos extremos 0 e 1.
+PRECISAO_LGD: float = 4.5
+
+
+def gerar_lgd(
+    n_anos: int = 18, n_por_ano: int = 90, ano_inicial: int = 2008, semente: int = 42
+) -> pd.DataFrame:
+    """Gera observações de LGD com senioridade, alavancagem e fator de ciclo.
+
+    A LGD é sorteada de uma distribuição beta cuja média depende das
+    covariáveis. Com precisão baixa, a beta acumula massa perto de 0 e de 1 —
+    o formato bimodal que qualquer base de recuperação real apresenta e que
+    nenhuma regressão linear reproduz.
+
+    O fator sistêmico anual é o mesmo que desloca a frequência de default: anos
+    ruins têm mais defaults **e** recuperações piores. Essa correlação é a razão
+    de existir a exigência de LGD de *downturn*.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Colunas ``Ano``, ``ID``, ``Senioridade``, ``LEV`` (alavancagem), ``COB``
+        (cobertura por garantia), ``CICLO``, ``LGD`` e ``taxa_default_ano``.
+    """
+    rng = np.random.default_rng(semente)
+
+    # Fator sistêmico: valores altos = ano ruim.
+    ciclo = np.empty(n_anos)
+    ciclo[0] = rng.normal(0.0, 1.0)
+    for t in range(1, n_anos):
+        ciclo[t] = 0.5 * ciclo[t - 1] + rng.normal(0.0, np.sqrt(1 - 0.25))
+
+    registros = []
+    for t in range(n_anos):
+        ano = ano_inicial + t
+        senioridade = rng.choice(SENIORIDADES, size=n_por_ano, p=[0.30, 0.45, 0.25])
+        LEV = np.clip(rng.normal(0.42, 0.16, n_por_ano), 0.03, 0.95)
+        # Cobertura por garantia: boa parte das operações não tem nenhuma, e as
+        # que têm variam de parcial a sobregarantida (alienação fiduciária).
+        COB = np.where(
+            rng.random(n_por_ano) < 0.45,
+            0.0,
+            np.clip(rng.gamma(2.2, 0.34, n_por_ano), 0.0, 1.6),
+        )
+
+        indice = np.full(n_por_ano, COEFS_LGD["CONST"])
+        indice += COEFS_LGD["LEV"] * LEV
+        indice += COEFS_LGD["COB"] * COB
+        indice += COEFS_LGD["CICLO"] * ciclo[t]
+        for nome in ["Sr. Unsec.", "Sub."]:
+            indice += COEFS_LGD[nome] * (senioridade == nome)
+
+        media = 1.0 / (1.0 + np.exp(-indice))
+        a = media * PRECISAO_LGD
+        b = (1.0 - media) * PRECISAO_LGD
+        lgd = rng.beta(a, b)
+
+        # Taxa de default do ano, movida pelo mesmo fator sistêmico.
+        taxa = 1.0 / (1.0 + np.exp(-(-4.0 + 0.75 * ciclo[t])))
+
+        for i in range(n_por_ano):
+            registros.append(
+                {
+                    "Ano": ano,
+                    "ID": t * n_por_ano + i + 1,
+                    "Senioridade": senioridade[i],
+                    "LEV": float(LEV[i]),
+                    "COB": float(COB[i]),
+                    "CICLO": float(ciclo[t]),
+                    "LGD": float(lgd[i]),
+                    "taxa_default_ano": float(taxa),
+                }
+            )
+    return pd.DataFrame.from_records(registros)
