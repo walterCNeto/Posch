@@ -59,7 +59,11 @@ dos gráficos e da interpretação.
 | 12 | Basileia II e ratings internos | `regcap` |
 
 Cada capítulo encerra com uma nota de ponte regulatória para o arcabouço
-brasileiro (CMN 4.966, CMN 4.557, Circular 3.648, BCB 265).
+brasileiro (CMN 4.966, CMN 4.557, Circular 3.648, BCB 265, BCB 229).
+
+Os doze capítulos estão escritos. Cada notebook é gerado por um script em
+`scripts/build_capNN.py`: edite o script, rode-o, e o notebook é reescrito.
+Nunca edite o `.ipynb` diretamente.
 
 ## Licença
 

@@ -20,6 +20,9 @@ parts:
     chapters:
       - file: cap10_cds
       - file: cap11_cdos
+  - caption: Capital regulatório
+    chapters:
+      - file: cap12_basileia
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br
