@@ -12,6 +12,10 @@ parts:
     chapters:
       - file: cap06_correlacao
       - file: cap07_carteira
+  - caption: Validação
+    chapters:
+      - file: cap08_validacao_rating
+      - file: cap09_validacao_carteira
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br

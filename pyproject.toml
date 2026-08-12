@@ -39,6 +39,9 @@ packages = ["credrisk"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Sem isto, o padrão "test*" faria o pytest coletar funções em português
+# chamadas teste_binomial, teste_berkowitz etc. como se fossem casos de teste.
+python_functions = ["test_*"]
 markers = ["slow: teste demorado (amostra grande)"]
 
 [tool.ruff]

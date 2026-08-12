@@ -620,3 +620,131 @@ def gerar_carteira(
             "RHO": p["RHO"],
         }
     )
+
+
+# --------------------------------------------------------------------------
+# Capítulos 8 e 9 — validação
+# --------------------------------------------------------------------------
+
+#: Grades de rating interno e a PD verdadeira de cada uma.
+GRADES: list[str] = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC"]
+
+PD_POR_GRADE: dict[str, float] = {
+    "AAA": 0.0004,
+    "AA": 0.0012,
+    "A": 0.0035,
+    "BBB": 0.0110,
+    "BB": 0.0320,
+    "B": 0.0850,
+    "CCC": 0.2200,
+}
+
+#: Participação de cada grade na carteira.
+PESO_GRADE: dict[str, float] = {
+    "AAA": 0.05,
+    "AA": 0.10,
+    "A": 0.20,
+    "BBB": 0.28,
+    "BB": 0.22,
+    "B": 0.11,
+    "CCC": 0.04,
+}
+
+
+def gerar_carteira_rating(
+    n_obrigados: int = 4000,
+    rho: float = 0.0,
+    vies_pd: float = 1.0,
+    ruido_rating: float = 0.0,
+    semente: int = 42,
+) -> pd.DataFrame:
+    """Gera uma carteira classificada por rating, com defaults realizados.
+
+    Parameters
+    ----------
+    rho
+        Correlação de ativos. Com ``0.0`` os defaults são independentes dado o
+        rating — a hipótese que os testes clássicos de calibração assumem. Com
+        valor positivo entra um fator sistêmico comum, e é aí que esses testes
+        começam a mentir.
+    vies_pd
+        Multiplicador aplicado à PD **atribuída** pelo modelo, mantendo a PD
+        verdadeira. Serve para simular um sistema descalibrado e medir se os
+        testes o detectam.
+    ruido_rating
+        Desvio-padrão de um erro de classificação: com valor positivo, parte dos
+        devedores é colocada na grade errada, degradando o poder discriminante
+        sem alterar a calibração média.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Colunas ``ID``, ``Grade``, ``PD_atribuida``, ``PD_verdadeira``,
+        ``escore`` e ``Default``.
+    """
+    from scipy import stats as _st
+
+    rng = np.random.default_rng(semente)
+    grades = list(GRADES)
+    pesos = np.array([PESO_GRADE[g] for g in grades])
+    pesos = pesos / pesos.sum()
+
+    indice = rng.choice(len(grades), size=n_obrigados, p=pesos)
+    pd_verdadeira = np.array([PD_POR_GRADE[grades[i]] for i in indice])
+
+    # Erro de classificação: embaralha parte dos devedores entre grades vizinhas.
+    if ruido_rating > 0:
+        desloc = np.rint(rng.normal(0.0, ruido_rating, n_obrigados)).astype(int)
+        indice_atribuido = np.clip(indice + desloc, 0, len(grades) - 1)
+    else:
+        indice_atribuido = indice
+
+    grade_atribuida = [grades[i] for i in indice_atribuido]
+    pd_atribuida = np.array([PD_POR_GRADE[g] for g in grade_atribuida]) * vies_pd
+    pd_atribuida = np.clip(pd_atribuida, 1e-6, 0.99)
+
+    limiar = _st.norm.ppf(pd_verdadeira)
+    if rho > 0:
+        X = rng.normal(0.0, 1.0)
+        Z = np.sqrt(rho) * X + np.sqrt(1 - rho) * rng.normal(0.0, 1.0, n_obrigados)
+    else:
+        X = 0.0
+        Z = rng.normal(0.0, 1.0, n_obrigados)
+    default = (Z < limiar).astype(int)
+
+    return pd.DataFrame(
+        {
+            "ID": np.arange(1, n_obrigados + 1),
+            "Grade": grade_atribuida,
+            "PD_atribuida": pd_atribuida,
+            "PD_verdadeira": pd_verdadeira,
+            "escore": pd_atribuida,
+            "Default": default,
+            "fator": X,
+        }
+    )
+
+
+def gerar_painel_validacao(
+    n_anos: int = 15,
+    n_obrigados: int = 4000,
+    rho: float = 0.12,
+    vies_pd: float = 1.0,
+    semente: int = 42,
+) -> pd.DataFrame:
+    """Gera vários anos de carteira classificada, com fator sistêmico próprio.
+
+    É a base do backtesting temporal: cada ano tem sua realização do fator, e
+    portanto sua taxa de default agregada.
+    """
+    partes = []
+    for t in range(n_anos):
+        ano = gerar_carteira_rating(
+            n_obrigados=n_obrigados,
+            rho=rho,
+            vies_pd=vies_pd,
+            semente=semente + 1000 * t,
+        )
+        ano.insert(0, "Ano", t + 1)
+        partes.append(ano)
+    return pd.concat(partes, ignore_index=True)
