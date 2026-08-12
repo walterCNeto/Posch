@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelagem de Risco de Crédito em Python</title>
+<meta name="description" content="Curso em doze capítulos sobre modelagem de risco de crédito em Python: PD, LGD, correlação de ativos, risco de carteira, validação e capital regulatório. Bases sintéticas com parâmetros conhecidos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --fundo:#0c1a1e;
+    --fundo-2:#122a30;
+    --superficie:#16323a;
+    --linha:#24454d;
+    --tinta:#e9e5db;
+    --tinta-fraca:#93a8ad;
+    --agua:#5fb0b7;
+    --gabarito:#e0a943;
+    --estimado:#d1674a;
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --corpo:"Newsreader",Georgia,serif;
+    --dados:"JetBrains Mono",ui-monospace,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--fundo);
+    color:var(--tinta);
+    font-family:var(--corpo);
+    font-size:18px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--agua);outline-offset:3px;border-radius:2px}
+
+  .envelope{max-width:1060px;margin:0 auto;padding:0 28px}
+
+  /* ---------- topo ---------- */
+  .topo{
+    display:flex;justify-content:space-between;align-items:center;
+    gap:20px;padding:26px 0 0;
+  }
+  .marca{
+    font-family:var(--dados);font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--tinta-fraca);
+  }
+  .topo nav{display:flex;gap:22px;font-family:var(--dados);font-size:12.5px}
+  .topo nav a{color:var(--tinta-fraca);text-decoration:none;transition:color .2s}
+  .topo nav a:hover{color:var(--agua)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:74px 0 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:start}
+  .sobrancelha{
+    font-family:var(--dados);font-size:12px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--agua);margin-bottom:22px;
+  }
+  h1{
+    font-family:var(--display);font-weight:700;font-size:clamp(2.05rem,4.2vw,3rem);
+    line-height:1.1;letter-spacing:-.02em;margin:0 0 24px;
+  }
+  h1 em{font-style:normal;color:var(--agua)}
+  .chamada{font-size:1.16rem;color:#cdd6d4;margin:0 0 32px;max-width:34em}
+  .acoes{display:flex;flex-wrap:wrap;gap:14px}
+  .botao{
+    font-family:var(--dados);font-size:13.5px;letter-spacing:.04em;
+    padding:13px 22px;text-decoration:none;border:1px solid var(--agua);
+    transition:background .2s,color .2s;
+  }
+  .botao-cheio{background:var(--agua);color:var(--fundo);font-weight:700}
+  .botao-cheio:hover{background:#7cc6cc}
+  .botao-vazio{color:var(--agua)}
+  .botao-vazio:hover{background:rgba(95,176,183,.12)}
+
+  /* ---------- painel do gabarito (elemento assinatura) ---------- */
+  .gabarito{
+    background:var(--fundo-2);border:1px solid var(--linha);
+    padding:26px 26px 22px;position:relative;
+  }
+  .gabarito-topo{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--linha);padding-bottom:13px;margin-bottom:20px;
+  }
+  .gabarito-rotulo{
+    font-family:var(--dados);font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--tinta-fraca);
+  }
+  .gabarito-cap{font-family:var(--dados);font-size:11px;color:var(--agua)}
+  .gabarito-oque{
+    font-family:var(--display);font-weight:500;font-size:1.02rem;
+    margin:0 0 20px;min-height:2.9em;color:#dbe3e1;
+  }
+  .linha-valor{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:11px 0;border-bottom:1px dotted var(--linha);
+  }
+  .linha-valor span:first-child{
+    font-family:var(--dados);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--tinta-fraca);
+  }
+  .valor{font-family:var(--dados);font-size:1.42rem;font-weight:700}
+  .valor-estimado{color:var(--estimado)}
+  .valor-gabarito{color:var(--gabarito)}
+  .revelar{opacity:0;transform:translateY(5px);transition:opacity .5s ease,transform .5s ease}
+  .revelar.visivel{opacity:1;transform:none}
+  .gabarito-nota{
+    font-size:.93rem;color:var(--tinta-fraca);margin:18px 0 0;
+    min-height:3.4em;line-height:1.5;
+  }
+  .pontos{display:flex;gap:7px;margin-top:18px}
+  .ponto{width:22px;height:2px;background:var(--linha);border:0;padding:0;cursor:pointer}
+  .ponto[aria-current="true"]{background:var(--agua)}
+
+  /* ---------- seções ---------- */
+  .secao{padding:82px 0;border-top:1px solid var(--linha)}
+  h2{
+    font-family:var(--display);font-weight:700;font-size:clamp(1.7rem,3vw,2.3rem);
+    letter-spacing:-.02em;line-height:1.14;margin:0 0 22px;
+  }
+  .secao > .envelope > p{max-width:37em;color:#cdd6d4}
+
+  .tese{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:start}
+  .tese p{margin:0 0 18px}
+  .tese p:last-child{margin-bottom:0}
+
+  /* ---------- achados ---------- */
+  .achados{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--linha);margin-top:38px}
+  .achado{background:var(--fundo);padding:28px 24px}
+  .achado-num{
+    font-family:var(--dados);font-weight:700;font-size:2.1rem;
+    color:var(--agua);letter-spacing:-.03em;display:block;margin-bottom:10px;
+  }
+  .achado-oque{font-size:.98rem;color:#cdd6d4;margin:0 0 14px;line-height:1.5}
+  .achado-cap{font-family:var(--dados);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tinta-fraca)}
+
+  /* ---------- capítulos ---------- */
+  .caps{margin-top:34px;border-top:1px solid var(--linha)}
+  .cap{
+    display:grid;grid-template-columns:52px 1fr 1.35fr;gap:22px;align-items:baseline;
+    padding:17px 0;border-bottom:1px solid var(--linha);text-decoration:none;
+    transition:background .18s;
+  }
+  .cap:hover{background:var(--fundo-2)}
+  .cap-n{font-family:var(--dados);font-size:12px;color:var(--tinta-fraca)}
+  .cap-t{font-family:var(--display);font-weight:500;font-size:1.04rem}
+  .cap:hover .cap-t{color:var(--agua)}
+  .cap-d{font-size:.94rem;color:var(--tinta-fraca);line-height:1.45}
+  .parte{
+    font-family:var(--dados);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--agua);padding:26px 0 9px;
+  }
+  .parte:first-child{padding-top:8px}
+
+  /* ---------- começar ---------- */
+  .comecar{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:start}
+  pre{
+    background:var(--fundo-2);border:1px solid var(--linha);padding:20px 22px;
+    font-family:var(--dados);font-size:13px;line-height:1.85;overflow-x:auto;
+    color:#cfe0df;margin:0;
+  }
+  pre b{color:var(--agua);font-weight:400}
+  .comecar ul{list-style:none;padding:0;margin:0}
+  .comecar li{padding:11px 0;border-bottom:1px solid var(--linha);font-size:.98rem;color:#cdd6d4}
+  .comecar li b{font-family:var(--dados);font-size:12px;letter-spacing:.06em;color:var(--tinta);display:block;margin-bottom:3px;font-weight:700}
+
+  /* ---------- rodapé ---------- */
+  footer{border-top:1px solid var(--linha);padding:38px 0 56px;color:var(--tinta-fraca);font-size:.92rem}
+  footer .envelope{display:flex;justify-content:space-between;gap:22px;flex-wrap:wrap}
+  footer a{color:var(--agua);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+
+  @media (max-width:880px){
+    .hero{grid-template-columns:1fr;gap:42px;padding-top:52px}
+    .tese,.comecar{grid-template-columns:1fr;gap:32px}
+    .achados{grid-template-columns:1fr}
+    .cap{grid-template-columns:38px 1fr;gap:14px}
+    .cap-d{grid-column:2;font-size:.9rem}
+    .topo nav{display:none}
+    body{font-size:17px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .revelar{opacity:1;transform:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="topo envelope">
+  <span class="marca">Modelagem de Risco de Crédito em Python</span>
+  <nav>
+    <a href="#tese">Método</a>
+    <a href="#capitulos">Capítulos</a>
+    <a href="#comecar">Instalação</a>
+    <a href="https://github.com/walterCNeto/Posch">GitHub</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero envelope">
+  <div>
+    <p class="sobrancelha">Curso aberto · 12 capítulos · Python</p>
+    <h1>Modelagem de Risco de Crédito <em>em Python</em></h1>
+    <p class="chamada">
+      Doze capítulos cobrindo probabilidade de default, perda dada o default,
+      correlação de ativos, distribuição de perda de carteira, validação de modelos
+      e capital regulatório. As bases são sintéticas, geradas por processos com
+      parâmetros conhecidos, o que permite comparar cada estimativa com o valor que
+      a produziu.
+    </p>
+    <div class="acoes">
+      <a class="botao botao-cheio" href="intro.html">Ler o curso</a>
+      <a class="botao botao-vazio" href="https://github.com/walterCNeto/Posch">Repositório</a>
+    </div>
+  </div>
+
+  <div class="gabarito">
+    <div class="gabarito-topo">
+      <span class="gabarito-rotulo">Estimado × processo gerador</span>
+      <span class="gabarito-cap" id="g-cap">Capítulo 1</span>
+    </div>
+    <p class="gabarito-oque" id="g-oque">Coeficiente de EBIT/TA num modelo de escore de crédito, estimado por logit em 4.130 observações.</p>
+    <div class="linha-valor">
+      <span>Estimado</span>
+      <span class="valor valor-estimado" id="g-est">−4,23</span>
+    </div>
+    <div class="linha-valor">
+      <span>Parâmetro verdadeiro</span>
+      <span class="valor valor-gabarito revelar" id="g-verd">−8,00</span>
+    </div>
+    <p class="gabarito-nota" id="g-nota">Nada no relatório de ajuste denuncia o erro. A causa é o denominador que ninguém olha: 82 defaults para 6 parâmetros.</p>
+    <div class="pontos" id="g-pontos"></div>
+  </div>
+</section>
+
+<section class="secao" id="tese">
+  <div class="envelope">
+    <div class="tese">
+      <div>
+        <h2>Por que as bases são sintéticas</h2>
+        <p>
+          Cada capítulo tem um processo gerador de dados documentado, com semente
+          fixa e parâmetros verdadeiros expostos como constantes do módulo. Nenhum
+          dado proprietário é redistribuído.
+        </p>
+        <p>
+          Isso permite três coisas que uma base real não permite: comparar a
+          estimativa com o parâmetro que gerou os dados, escrever teste automatizado
+          sobre o resultado do modelo e não apenas sobre o código, e alterar o
+          processo gerador para observar em que condições o estimador falha.
+        </p>
+      </div>
+      <div>
+        <p>
+          O curso usa esse recurso desde o capítulo 1, e não apenas nos dois
+          dedicados a validação. Em vários capítulos a comparação mostra que o
+          estimador é consistente e ainda assim impreciso na amostra disponível.
+        </p>
+        <p>
+          O tema recorrente é a incerteza de parâmetro: em PD, LGD e sobretudo em
+          correlação de ativos, a faixa compatível com os dados costuma alterar o
+          resultado final mais que a escolha do método. Os capítulos quantificam
+          essa faixa em vez de reportar apenas a estimativa pontual.
+        </p>
+      </div>
+    </div>
+
+    <div class="achados">
+      <div class="achado">
+        <span class="achado-num">85,8%</span>
+        <p class="achado-oque">é a taxa de rejeição do teste de Hosmer-Lemeshow aplicado a um sistema de rating corretamente calibrado, quando os defaults são correlacionados. Nível nominal: 5%.</p>
+        <span class="achado-cap">Capítulo 8</span>
+      </div>
+      <div class="achado">
+        <span class="achado-num">11%</span>
+        <p class="achado-oque">é o poder do teste de contagem de violações, com 20 anos de dados, contra um modelo de carteira que subestima o capital em 46%.</p>
+        <span class="achado-cap">Capítulo 9</span>
+      </div>
+      <div class="achado">
+        <span class="achado-num">57.879×</span>
+        <p class="achado-oque">é a razão entre os extremos da perda esperada de uma tranche sênior, dentro do intervalo de confiança de 95% da correlação estimada com 25 anos de dados.</p>
+        <span class="achado-cap">Capítulo 11</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="secao" id="capitulos">
+  <div class="envelope">
+    <h2>Capítulos</h2>
+    <p>
+      Cada capítulo segue a mesma estrutura: o problema que motiva o modelo, a
+      formulação matemática, a implementação chamando a biblioteca
+      <code>credrisk</code>, e uma seção final sobre limitações e o que muda em dados
+      reais. Todos encerram com uma nota sobre o tratamento no arcabouço regulatório
+      brasileiro.
+    </p>
+
+    <div class="caps">
+      <p class="parte">Risco individual</p>
+      <a class="cap" href="cap01_logit.html"><span class="cap-n">01</span><span class="cap-t">Escore de crédito com logit</span><span class="cap-d">Regressão logística, erro-padrão agrupado, correção de Firth e estimação com eventos raros.</span></a>
+      <a class="cap" href="cap02_merton.html"><span class="cap-n">02</span><span class="cap-t">A abordagem estrutural</span><span class="cap-d">Modelo de Merton, estimação iterativa do valor e da volatilidade do ativo, distância ao default.</span></a>
+      <a class="cap" href="cap03_transicao.html"><span class="cap-n">03</span><span class="cap-t">Matrizes de transição</span><span class="cap-d">Estimadores cohort e de duração, matriz geradora, exponencial de matriz e bootstrap.</span></a>
+      <a class="cap" href="cap04_previsao.html"><span class="cap-n">04</span><span class="cap-t">Previsão de taxas de default</span><span class="cap-d">Regressão na escala logit, backtest com janela expansível, erros-padrão de Newey-West.</span></a>
+      <a class="cap" href="cap05_lgd.html"><span class="cap-n">05</span><span class="cap-t">Perda dada o default</span><span class="cap-d">Regressão fracionária, bimodalidade da LGD, correlação com o ciclo e LGD de downturn.</span></a>
+
+      <p class="parte">Risco de carteira</p>
+      <a class="cap" href="cap06_correlacao.html"><span class="cap-n">06</span><span class="cap-t">Correlação de ativos</span><span class="cap-d">Modelo de fator único, estimação por momentos e máxima verossimilhança, verossimilhança perfilada.</span></a>
+      <a class="cap" href="cap07_carteira.html"><span class="cap-n">07</span><span class="cap-t">Risco de carteira</span><span class="cap-d">Monte Carlo, fórmula ASRF, amostragem por importância, granularidade e concentração.</span></a>
+
+      <p class="parte">Validação</p>
+      <a class="cap" href="cap08_validacao_rating.html"><span class="cap-n">08</span><span class="cap-t">Validação de sistemas de rating</span><span class="cap-d">CAP e razão de acurácia, ROC e AUC, escore de Brier, testes binomial e de Hosmer-Lemeshow.</span></a>
+      <a class="cap" href="cap09_validacao_carteira.html"><span class="cap-n">09</span><span class="cap-t">Validação de modelos de carteira</span><span class="cap-d">Transformada integral de probabilidade, teste de Berkowitz e análise de poder.</span></a>
+
+      <p class="parte">Precificação e estruturados</p>
+      <a class="cap" href="cap10_cds.html"><span class="cap-n">10</span><span class="cap-t">CDS e probabilidades neutras ao risco</span><span class="cap-d">Bootstrap da curva de hazard, pernas de prêmio e de proteção, medida física e neutra ao risco.</span></a>
+      <a class="cap" href="cap11_cdos.html"><span class="cap-n">11</span><span class="cap-t">Crédito estruturado</span><span class="cap-d">Tranches, aproximação de carteira homogênea, sensibilidade e correlação implícita.</span></a>
+
+      <p class="parte">Capital regulatório</p>
+      <a class="cap" href="cap12_basileia.html"><span class="cap-n">12</span><span class="cap-t">Basileia e ratings internos</span><span class="cap-d">Fórmula IRB, correlação prescrita, ajuste de maturidade e granularidade da escala de rating.</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="secao" id="comecar">
+  <div class="envelope">
+    <h2>Instalação</h2>
+    <div class="comecar">
+      <div>
+        <pre><b>git clone</b> https://github.com/walterCNeto/Posch
+<b>cd</b> Posch/curso-risco-credito
+
+<b>conda create</b> -n credrisk python=3.11 -y
+<b>conda activate</b> credrisk
+<b>pip install</b> -e ".[dev,book]"
+
+<b>pytest</b></pre>
+      </div>
+      <div>
+        <ul>
+          <li><b>Sem dados externos</b>As bases são geradas em execução por processos com semente fixa e ficam em cache local. Não há arquivo para baixar.</li>
+          <li><b>Código testado</b>Os notebooks não definem funções: importam do pacote <code>credrisk</code>, coberto por 179 testes, boa parte por comparação com resultado analítico fechado.</li>
+          <li><b>Parâmetros ajustáveis</b>Os processos geradores aceitam tamanho de amostra, número de anos e parâmetros verdadeiros como argumentos, o que permite repetir cada análise sob outras condições.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="envelope">
+    <span>Código sob MIT · textos e notebooks sob CC BY 4.0</span>
+    <span>Por <a href="https://waltercneto.github.io">Walter C. Neto</a> · <a href="https://github.com/walterCNeto/Posch">repositório</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var casos = [
+    {
+      cap: "Capítulo 1",
+      oque: "Coeficiente de EBIT/TA num modelo de escore de crédito, estimado por logit em 4.130 observações.",
+      est: "\u22124,23", verd: "\u22128,00",
+      nota: "O estimador é consistente; a amostra tem 82 defaults para 6 parâmetros, e o intervalo de confiança é largo o bastante para acomodar o desvio."
+    },
+    {
+      cap: "Capítulo 3",
+      oque: "Probabilidade de uma empresa AAA entrar em default em um ano, pelo estimador cohort.",
+      est: "0,0000%", verd: "0,0018%",
+      nota: "O cohort só observa as pontas do intervalo e nenhuma AAA quebrou na janela. O estimador de duração compõe os caminhos de migração e devolve valor positivo."
+    },
+    {
+      cap: "Capítulo 6",
+      oque: "Correlação de ativos estimada por máxima verossimilhança com 25 anos de taxas de default.",
+      est: "0,098", verd: "0,120",
+      nota: "O intervalo de confiança de 95% vai de 0,056 a 0,177. Dentro dessa faixa, o capital exigido varia por um fator de 2,8."
+    },
+    {
+      cap: "Capítulo 2",
+      oque: "Probabilidade de default de um ano pelo modelo estrutural, com volatilidade do ativo estimada pelo método iterativo.",
+      est: "5,72%", verd: "7,58%",
+      nota: "A volatilidade do ativo é estimada sem viés relevante. A não-linearidade da transformação amplifica o erro remanescente por um fator próximo de cinco."
+    }
+  ];
+
+  var elCap = document.getElementById("g-cap"),
+      elOque = document.getElementById("g-oque"),
+      elEst = document.getElementById("g-est"),
+      elVerd = document.getElementById("g-verd"),
+      elNota = document.getElementById("g-nota"),
+      elPontos = document.getElementById("g-pontos");
+
+  var atual = 0, timer = null, pausado = false;
+  var reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  casos.forEach(function(c, i){
+    var b = document.createElement("button");
+    b.className = "ponto";
+    b.type = "button";
+    b.setAttribute("aria-label", "Mostrar exemplo do " + c.cap.toLowerCase());
+    b.addEventListener("click", function(){ mostrar(i); reiniciar(); });
+    elPontos.appendChild(b);
+  });
+
+  function mostrar(i){
+    atual = i;
+    var c = casos[i];
+    elCap.textContent = c.cap;
+    elOque.textContent = c.oque;
+    elEst.textContent = c.est;
+    elVerd.textContent = c.verd;
+    elNota.textContent = c.nota;
+    Array.prototype.forEach.call(elPontos.children, function(p, k){
+      p.setAttribute("aria-current", k === i ? "true" : "false");
+    });
+    if(reduzir){ elVerd.classList.add("visivel"); return; }
+    elVerd.classList.remove("visivel");
+    setTimeout(function(){ elVerd.classList.add("visivel"); }, 900);
+  }
+
+  function reiniciar(){
+    if(timer) clearInterval(timer);
+    if(reduzir) return;
+    timer = setInterval(function(){
+      if(!pausado) mostrar((atual + 1) % casos.length);
+    }, 7000);
+  }
+
+  var painel = document.querySelector(".gabarito");
+  painel.addEventListener("mouseenter", function(){ pausado = true; });
+  painel.addEventListener("mouseleave", function(){ pausado = false; });
+  painel.addEventListener("focusin", function(){ pausado = true; });
+  painel.addEventListener("focusout", function(){ pausado = false; });
+
+  mostrar(0);
+  reiniciar();
+})();
+</script>
+</body>
+</html>

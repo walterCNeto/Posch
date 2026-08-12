@@ -34,6 +34,12 @@ jobs:
       - name: Construir o livro
         run: jupyter-book build book/
 
+      - name: Publicar a landing na raiz
+        # O Jupyter Book escreve index.html como um redirect para intro.html.
+        # A landing entra por cima; o restante do site fica intacto e o botão
+        # "Começar a ler" aponta para intro.html.
+        run: cp landing/index.html book/_build/html/index.html
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: book/_build/html

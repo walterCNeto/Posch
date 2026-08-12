@@ -18,10 +18,10 @@ from credrisk.data.generators import (
     gerar_historico_ratings,
 )
 from credrisk.transition.matrizes import (
-    bootstrap_coorte,
+    bootstrap_cohort,
     exposicao_e_transicoes,
     gerador_duracao,
-    matriz_coorte,
+    matriz_cohort,
     matriz_do_gerador,
     pd_por_horizonte,
     rating_na_data,
@@ -62,8 +62,8 @@ def test_rating_na_data_respeita_a_entrada(historico) -> None:
     assert painel.iloc[:, 0].isna().sum() > painel.iloc[:, -1].isna().sum()
 
 
-def test_matriz_coorte_e_estocastica(historico) -> None:
-    P = matriz_coorte(historico)
+def test_matriz_cohort_e_estocastica(historico) -> None:
+    P = matriz_cohort(historico)
     np.testing.assert_allclose(P.to_numpy().sum(axis=1), 1.0, atol=1e-12)
     assert (P.to_numpy() >= 0).all()
     assert P.loc["D", "D"] == pytest.approx(1.0)
@@ -108,23 +108,23 @@ def test_duracao_recupera_a_geradora_verdadeira() -> None:
     assert erro_rel.max() < 0.25, f"pior erro relativo: {erro_rel.max():.3f}"
 
 
-def test_coorte_zera_transicoes_raras_e_duracao_nao(historico) -> None:
+def test_cohort_zera_transicoes_raras_e_duracao_nao(historico) -> None:
     """O resultado que motiva o capítulo inteiro."""
-    P_coorte = matriz_coorte(historico)
+    P_cohort = matriz_cohort(historico)
     P_duracao = matriz_do_gerador(gerador_duracao(historico), 1.0)
 
-    assert P_coorte.loc["AAA", "D"] == 0.0
+    assert P_cohort.loc["AAA", "D"] == 0.0
     assert P_duracao.loc["AAA", "D"] > 0.0
     # A geradora verdadeira também é positiva ali.
     assert matriz_do_gerador(gerador_verdadeiro(), 1.0).loc["AAA", "D"] > 0.0
 
 
 def test_duracao_reproduz_a_esparsidade_verdadeira(historico) -> None:
-    P_coorte = matriz_coorte(historico).to_numpy()
+    P_cohort = matriz_cohort(historico).to_numpy()
     P_duracao = matriz_do_gerador(gerador_duracao(historico), 1.0).to_numpy()
     P_verd = matriz_do_gerador(gerador_verdadeiro(), 1.0).to_numpy()
     assert (P_duracao == 0).sum() == (P_verd == 0).sum()
-    assert (P_coorte == 0).sum() > (P_verd == 0).sum()
+    assert (P_cohort == 0).sum() > (P_verd == 0).sum()
 
 
 def test_exposicao_nao_conta_tempo_apos_default(historico) -> None:
@@ -142,7 +142,7 @@ def test_pd_cumulativa_cresce_com_horizonte_e_com_risco() -> None:
 
 
 def test_bootstrap_produz_dispersao(historico) -> None:
-    amostras = bootstrap_coorte(historico, n_reamostras=25, semente=1)
+    amostras = bootstrap_cohort(historico, n_reamostras=25, semente=1)
     assert amostras.shape == (25, len(RATINGS), len(RATINGS))
     np.testing.assert_allclose(amostras.sum(axis=2), 1.0, atol=1e-10)
     # A célula BBB->D tem de variar entre reamostras.

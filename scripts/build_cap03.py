@@ -42,10 +42,10 @@ from credrisk.data.generators import (
     gerar_historico_ratings,
 )
 from credrisk.transition.matrizes import (
-    bootstrap_coorte,
+    bootstrap_cohort,
     exposicao_e_transicoes,
     gerador_duracao,
-    matriz_coorte,
+    matriz_cohort,
     matriz_do_gerador,
     pd_por_horizonte,
 )
@@ -93,7 +93,7 @@ de 7,5 anos sai sem reestimar nada.
 
 ## Os dois estimadores
 
-**Coorte.** Olhe onde cada empresa estava em 1º de janeiro e onde estava em 31 de
+**Cohort.** Olhe onde cada empresa estava em 1º de janeiro e onde estava em 31 de
 dezembro. Conte. Divida. É o que as agências publicam e o que quase toda área de
 risco calcula.
 
@@ -110,12 +110,12 @@ em $i$. É o estimador de máxima verossimilhança da cadeia em tempo contínuo.
 A diferença parece técnica. Não é."""
     ),
     code(
-        """P_coorte = matriz_coorte(historico)
+        """P_cohort = matriz_cohort(historico)
 Q_duracao = gerador_duracao(historico)
 P_duracao = matriz_do_gerador(Q_duracao, 1.0)
 
-print("Matriz de coorte — probabilidades de transição em 1 ano (%)")
-(P_coorte * 100).round(3)"""
+print("Matriz cohort — probabilidades de transição em 1 ano (%)")
+(P_cohort * 100).round(3)"""
     ),
     code(
         """print("Matriz por duração — probabilidades de transição em 1 ano (%)")
@@ -132,18 +132,18 @@ lado da verdade que o gerador conhece."""
 
 colunaD = pd.DataFrame({
     "verdadeira": P_verdadeira["D"] * 100,
-    "coorte": P_coorte["D"] * 100,
+    "cohort": P_cohort["D"] * 100,
     "duração": P_duracao["D"] * 100,
 })
 colunaD.round(4)"""
     ),
     md(
-        """A matriz de coorte afirma que a probabilidade de uma empresa AAA entrar
+        """A matriz cohort afirma que a probabilidade de uma empresa AAA entrar
 em default em um ano é **exatamente zero**. E o mesmo para AA.
 
 Isso não é uma estimativa pequena. É uma afirmação de impossibilidade. E ela não
 vem dos dados — vem do estimador: nenhuma empresa AAA quebrou nesta janela, e o
-estimador de coorte não tem outro jeito de dizer "raro" além de dizer "nunca".
+estimador cohort não tem outro jeito de dizer "raro" além de dizer "nunca".
 
 O estimador de duração, olhando os mesmos dados, devolve um número pequeno e
 positivo. Ele consegue porque não precisa observar AAA → D diretamente: observa
@@ -164,12 +164,12 @@ Vale conferir se a vantagem se sustenta ou se é só essa célula:"""
     code(
         """zeros = pd.Series({
     "verdadeira": int((P_verdadeira.to_numpy() == 0).sum()),
-    "coorte": int((P_coorte.to_numpy() == 0).sum()),
+    "cohort": int((P_cohort.to_numpy() == 0).sum()),
     "duração": int((P_duracao.to_numpy() == 0).sum()),
 }, name="células iguais a zero")
 
 erro = pd.Series({
-    "coorte": np.abs(P_coorte.to_numpy() - P_verdadeira.to_numpy()).mean(),
+    "cohort": np.abs(P_cohort.to_numpy() - P_verdadeira.to_numpy()).mean(),
     "duração": np.abs(P_duracao.to_numpy() - P_verdadeira.to_numpy()).mean(),
 }, name="erro absoluto médio")
 
@@ -181,7 +181,7 @@ print(erro.round(6).to_string())"""
         """Duas leituras, e a segunda é a que costuma ser omitida.
 
 A duração reproduz **exatamente** a estrutura de esparsidade verdadeira — mesmo
-número de zeros, e nos mesmos lugares. A coorte inventa zeros que não existem.
+número de zeros, e nos mesmos lugares. O cohort inventa zeros que não existem.
 
 Mas o erro absoluto médio dos dois estimadores é praticamente **igual**. A
 vantagem da duração não está em ser mais precisa no geral: está em ser
@@ -232,7 +232,7 @@ bootstrap, e a unidade de reamostragem é a **empresa**, não a observação —
 razão discutida no capítulo 1."""
     ),
     code(
-        """amostras = bootstrap_coorte(historico, n_reamostras=300, semente=11)
+        """amostras = bootstrap_cohort(historico, n_reamostras=300, semente=11)
 
 i_bbb, i_d = RATINGS.index("BBB"), RATINGS.index("D")
 celula = amostras[:, i_bbb, i_d] * 100
@@ -241,7 +241,7 @@ fig, ax = plt.subplots()
 ax.hist(celula, bins=25, alpha=0.85)
 ax.axvline(P_verdadeira.loc["BBB", "D"] * 100, color="#c1553b", lw=2,
            label="verdadeira")
-ax.axvline(P_coorte.loc["BBB", "D"] * 100, color="#1f4e5f", lw=2, ls="--",
+ax.axvline(P_cohort.loc["BBB", "D"] * 100, color="#1f4e5f", lw=2, ls="--",
            label="nossa amostra")
 ax.set_title("Incerteza da célula BBB → D (300 reamostras de empresas)")
 ax.set_xlabel("PD de 1 ano (%)")
@@ -284,7 +284,7 @@ estimadas nas duas matrizes.
 O estimador de duração aproveita melhor o pouco que existe, porque conta cada
 migração com sua data e usa toda a exposição parcial. Uma empresa que ficou
 quatro meses em CCC antes de quebrar contribui com quatro meses de exposição —
-enquanto para o estimador de coorte ela pode não existir, se entrou e saiu entre
+enquanto para o estimador cohort ela pode não existir, se entrou e saiu entre
 duas datas de corte.
 
 ## O que quebra fora do laboratório
@@ -300,7 +300,7 @@ recessão, toda a matriz se desloca para baixo. Uma matriz estimada em janela
 longa é uma média de regimes que talvez nunca ocorra. Condicionar a matriz ao
 ciclo é o assunto do capítulo 4.
 
-**Nem toda geradora tem raiz.** Dada uma matriz de coorte anual, nem sempre
+**Nem toda geradora tem raiz.** Dada uma matriz cohort anual, nem sempre
 existe uma geradora $Q$ tal que $\\exp(Q) = P$ — é o problema da incorporabilidade
 (*embeddability*). Quando não existe, gerar a matriz de 6 meses tirando "raiz
 quadrada" de $P$ pode produzir probabilidades negativas. Estimar $Q$ diretamente,
@@ -319,7 +319,7 @@ a causa, mas não dispensa o piso.
 
 **Perda esperada ao longo da vida.** A curva de PD por horizonte deste capítulo
 é o insumo direto do cálculo de perda esperada *lifetime* para ativos em estágio
-2. A escolha entre coorte e duração muda o número provisionado, e essa escolha
+2. A escolha entre cohort e duração muda o número provisionado, e essa escolha
 precisa estar documentada e justificada — não herdada de uma planilha.
 
 **Migração significativa de risco.** O critério de transferência entre estágios
@@ -332,7 +332,7 @@ está apresentando meia informação. O bootstrap acima custa segundos.
 
 ## Exercícios
 
-1. Estime a matriz de coorte com passo trimestral em vez de anual e componha
+1. Estime a matriz cohort com passo trimestral em vez de anual e componha
    quatro trimestres. O resultado bate com a matriz anual? Se não, o que a
    diferença revela sobre migrações que se revertem dentro do ano?
 
@@ -340,10 +340,10 @@ está apresentando meia informação. O bootstrap acima custa segundos.
    a coluna de default? Isso é ciclo, ruído ou as duas coisas — e como você
    distinguiria?
 
-3. Simule uma base com apenas 300 empresas e refaça a comparação entre coorte e
+3. Simule uma base com apenas 300 empresas e refaça a comparação entre cohort e
    duração. A vantagem da duração cresce ou diminui quando o dado escasseia?
 
-4. Tome a matriz de coorte anual e tente extrair sua geradora por logaritmo de
+4. Tome a matriz cohort anual e tente extrair sua geradora por logaritmo de
    matriz (`scipy.linalg.logm`). Apareceram elementos negativos fora da
    diagonal? O que isso diz sobre a incorporabilidade dessa matriz?"""
     ),

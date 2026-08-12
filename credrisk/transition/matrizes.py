@@ -2,13 +2,13 @@
 
 Dois estimadores para o mesmo objeto, com propriedades bem diferentes:
 
-* :func:`matriz_coorte` — conta quantas empresas estavam em ``i`` no começo do
+* :func:`matriz_cohort` — conta quantas empresas estavam em ``i`` no começo do
   ano e em ``j`` no fim. É o estimador do mercado, simples e transparente.
 * :func:`gerador_duracao` — estima a matriz geradora em tempo contínuo usando
   o tempo de exposição em cada estado e todas as migrações observadas, inclusive
   as que acontecem e se desfazem dentro do mesmo ano.
 
-A diferença prática aparece nas transições raras: o estimador de coorte devolve
+A diferença prática aparece nas transições raras: o estimador cohort devolve
 zero para qualquer transição não observada, e zero é uma afirmação forte demais
 para uma probabilidade que é apenas pequena.
 """
@@ -53,10 +53,10 @@ def _contar_transicoes(painel: np.ndarray) -> np.ndarray:
     return contagem
 
 
-def matriz_coorte(
+def matriz_cohort(
     historico: pd.DataFrame, anos: float = 15.0, passo: float = 1.0
 ) -> pd.DataFrame:
-    """Estimador de coorte da matriz de transição anual.
+    """Estimador cohort da matriz de transição anual.
 
     Para cada par de datas separadas por ``passo``, conta as empresas que estavam
     em cada estado no início e onde estavam no fim, e divide pela contagem
@@ -156,14 +156,14 @@ def pd_por_horizonte(
     return pd.DataFrame(linhas)
 
 
-def bootstrap_coorte(
+def bootstrap_cohort(
     historico: pd.DataFrame,
     n_reamostras: int = 200,
     anos: float = 15.0,
     passo: float = 1.0,
     semente: int = 0,
 ) -> np.ndarray:
-    """Reamostra empresas (não linhas) para obter a incerteza da matriz de coorte.
+    """Reamostra empresas (não linhas) para obter a incerteza da matriz cohort.
 
     A unidade de reamostragem é a empresa, porque as observações de uma mesma
     empresa não são independentes — a mesma lição do capítulo 1, agora com
