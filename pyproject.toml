@@ -54,3 +54,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # Fórmulas LaTeX e prosa em Markdown nos geradores de notebook.
 "scripts/build_cap*.py" = ["E501"]
+# Fórmulas LaTeX em docstring perdem legibilidade se quebradas na marra.
+"credrisk/correlation/vasicek.py" = ["E501"]
+"credrisk/portfolio/montecarlo.py" = ["E501"]

@@ -519,3 +519,104 @@ def gerar_lgd(
                 }
             )
     return pd.DataFrame.from_records(registros)
+
+
+# --------------------------------------------------------------------------
+# Capítulos 6 e 7 — correlação de ativos e risco de carteira
+# --------------------------------------------------------------------------
+
+#: Parâmetros verdadeiros do modelo de fator único usado nos capítulos 6 e 7.
+PARAMS_FATOR: dict[str, float] = {
+    "PD": 0.0150,   # probabilidade de default incondicional
+    "RHO": 0.1200,  # correlação de ativos
+}
+
+
+def gerar_taxas_vasicek(
+    n_anos: int = 25,
+    n_obrigados: int = 1000,
+    pd_incondicional: float | None = None,
+    rho: float | None = None,
+    semente: int = 42,
+) -> pd.DataFrame:
+    """Gera taxas de default anuais de um modelo de fator único (Vasicek).
+
+    O valor do ativo padronizado do devedor ``i`` no ano ``t`` é
+
+    .. math:: Z_{it} = \\sqrt{\\rho}\\,X_t + \\sqrt{1-\\rho}\\,\\varepsilon_{it},
+
+    com :math:`X_t` o fator sistêmico e :math:`\\varepsilon_{it}` o risco
+    idiossincrático, ambos normais padrão e independentes. Há default quando
+    :math:`Z_{it}` cai abaixo do limiar :math:`\\Phi^{-1}(PD)`.
+
+    A correlação :math:`\\rho` é a única fonte de dependência entre devedores —
+    e é ela que impede que a perda de uma carteira grande seja determinística.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Colunas ``Ano``, ``X`` (fator realizado, não observável na prática),
+        ``taxa_condicional``, ``N``, ``Defaults`` e ``taxa_observada``.
+    """
+    from scipy import stats as _st
+
+    p = PARAMS_FATOR["PD"] if pd_incondicional is None else pd_incondicional
+    r = PARAMS_FATOR["RHO"] if rho is None else rho
+    rng = np.random.default_rng(semente)
+
+    limiar = _st.norm.ppf(p)
+    X = rng.normal(0.0, 1.0, size=n_anos)
+    taxa_condicional = _st.norm.cdf((limiar - np.sqrt(r) * X) / np.sqrt(1 - r))
+    defaults = rng.binomial(n_obrigados, taxa_condicional)
+
+    return pd.DataFrame(
+        {
+            "Ano": np.arange(1, n_anos + 1),
+            "X": X,
+            "taxa_condicional": taxa_condicional,
+            "N": n_obrigados,
+            "Defaults": defaults,
+            "taxa_observada": defaults / n_obrigados,
+        }
+    )
+
+
+def gerar_carteira(
+    n_obrigados: int = 2000,
+    homogenea: bool = False,
+    semente: int = 42,
+) -> pd.DataFrame:
+    """Gera uma carteira de crédito com exposição, PD, LGD e correlação.
+
+    Com ``homogenea=True``, todas as posições têm a mesma exposição e a mesma
+    PD — o caso em que a fórmula analítica de Vasicek vale exatamente no limite,
+    e portanto o caso em que a simulação pode ser conferida contra resposta
+    fechada.
+
+    Com ``homogenea=False``, a exposição segue uma distribuição bastante
+    assimétrica: poucas posições grandes respondem por parcela desproporcional
+    do total. É a concentração que existe em qualquer carteira corporativa real
+    e que a fórmula analítica ignora.
+    """
+    rng = np.random.default_rng(semente)
+    p = PARAMS_FATOR
+
+    if homogenea:
+        ead = np.full(n_obrigados, 1_000.0)
+        pd_i = np.full(n_obrigados, p["PD"])
+        lgd = np.full(n_obrigados, 0.45)
+    else:
+        ead = rng.lognormal(mean=6.4, sigma=1.15, size=n_obrigados)
+        pd_i = np.clip(rng.lognormal(mean=np.log(p["PD"]), sigma=0.85, size=n_obrigados),
+                       1e-4, 0.35)
+        lgd = np.clip(rng.beta(4.0, 5.0, size=n_obrigados), 0.05, 0.95)
+
+    return pd.DataFrame(
+        {
+            "ID": np.arange(1, n_obrigados + 1),
+            "EAD": ead,
+            "PD": pd_i,
+            "LGD": lgd,
+            "RHO": p["RHO"],
+        }
+    )

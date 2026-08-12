@@ -8,6 +8,10 @@ parts:
       - file: cap03_transicao
       - file: cap04_previsao
       - file: cap05_lgd
+  - caption: Risco de carteira
+    chapters:
+      - file: cap06_correlacao
+      - file: cap07_carteira
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br
