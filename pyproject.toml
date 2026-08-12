@@ -43,7 +43,14 @@ markers = ["slow: teste demorado (amostra grande)"]
 
 [tool.ruff]
 line-length = 95
+# Texto em Markdown dentro dos scripts de notebook e das fórmulas LaTeX não se
+# quebra sem perder legibilidade; a regra de comprimento vale para código.
+extend-exclude = []
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Fórmulas LaTeX e prosa em Markdown nos geradores de notebook.
+"scripts/build_cap*.py" = ["E501"]

@@ -4,6 +4,8 @@ parts:
   - caption: Risco individual
     chapters:
       - file: cap01_logit
+      - file: cap02_merton
+      - file: cap03_transicao
   - caption: Apêndices
     chapters:
       - file: apendices/regulatorio_br
