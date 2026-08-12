@@ -1,0 +1,28 @@
+# bases geradas (reconstruíveis via credrisk.data.registry)
+data/gerado/
+
+# material de referência offline — não versionar
+*.xlsm
+*.xls
+referencia/
+
+# build do livro
+book/_build/
+.jupyter_cache/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# ambiente
+.venv/
+.env
+.DS_Store

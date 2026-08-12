@@ -1,0 +1,39 @@
+title: Risco de Crédito em Python
+author: Walter C. Neto
+copyright: "2026"
+logo: ""
+
+only_build_toc_files: true
+
+execute:
+  execute_notebooks: cache
+  timeout: 600
+  allow_errors: false
+
+parse:
+  myst_enable_extensions:
+    - amsmath
+    - dollarmath
+    - colon_fence
+    - deflist
+    - html_image
+
+sphinx:
+  config:
+    language: pt_BR
+    mathjax3_config:
+      tex:
+        macros:
+          PD: "\\mathrm{PD}"
+          LGD: "\\mathrm{LGD}"
+          EAD: "\\mathrm{EAD}"
+
+html:
+  use_issues_button: false
+  use_repository_button: true
+  home_page_in_navbar: true
+
+repository:
+  url: https://github.com/walterCNeto/Posch
+  path_to_book: book
+  branch: main

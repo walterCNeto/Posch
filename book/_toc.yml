@@ -1,0 +1,26 @@
+format: jb-book
+root: intro
+parts:
+  - caption: Risco individual
+    chapters:
+      - file: cap01_logit
+      # - file: cap02_merton
+      # - file: cap03_transicao
+      # - file: cap04_previsao
+      # - file: cap05_lgd
+  - caption: Risco de carteira
+    chapters: []
+      # - file: cap06_correlacao
+      # - file: cap07_carteira
+  - caption: Validação
+    chapters: []
+      # - file: cap08_validacao_rating
+      # - file: cap09_validacao_carteira
+  - caption: Precificação e capital
+    chapters: []
+      # - file: cap10_cds
+      # - file: cap11_cdos
+      # - file: cap12_basileia
+  - caption: Apêndices
+    chapters:
+      - file: apendices/regulatorio_br
